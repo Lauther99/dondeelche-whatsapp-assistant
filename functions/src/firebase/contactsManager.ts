@@ -1,6 +1,7 @@
 import * as Firestore from "firebase-admin/firestore";
 import * as type from "../types";
 import { getRandomPic } from "../utils/getRandomPic"
+import { BOT_FLOWS } from "../stateMachine/Flows";
 
 
 export const saveToChat = async (
@@ -9,13 +10,17 @@ export const saveToChat = async (
     senderPhone: string,
     message: string,
     waid: string,
-    userName?: string,
+    last_flow: string,
+    options?: { userName?: string; is_readed?: boolean }
 ) => {
     try {
+        // const { userName = "DefaultUser", is_readed = true } = options || {};
+        const userName = options?.userName ?? "Jhon Doe";
+        const is_readed = options?.is_readed ?? true;
         const newMessage: type.MessageDataType = {
             "sender": senderPhone,
             "content": message,
-            "is_readed": true,
+            "is_readed": is_readed,
             "created_at": Firestore.Timestamp.fromDate(new Date()),
             "waid": waid,
         };
@@ -25,7 +30,12 @@ export const saveToChat = async (
         if (doc.exists) { // Si encuentra un chat, lo actualiza
             const currentMessages: Array<type.MessageDataType> = doc.data()?.messages || [];
             currentMessages.push(newMessage);
-            await doc.ref.update({ last_message: newMessage, messages: currentMessages, last_interaction: Firestore.Timestamp.fromDate(new Date()) });
+            await doc.ref.update({ 
+                last_message: newMessage, 
+                messages: currentMessages, 
+                last_interaction: Firestore.Timestamp.fromDate(new Date()),
+                last_flow: last_flow,
+            });
             console.log("Conversación actualizada");
         } else { // Si no encuentra ningun chat, lo crea
             await db.collection("contacts")
@@ -38,7 +48,7 @@ export const saveToChat = async (
                     phone_number: userPhone,
                     chat_status: type.ChatStatus.Bot,
                     photo: getRandomPic(),
-                    last_flow: type.LastFlowStatus.START
+                    last_flow: BOT_FLOWS.MENUOPTIONS
                 });
             console.log("Conversación creada");
         }

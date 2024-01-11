@@ -88,3 +88,13 @@ export enum ChatStatus {
   Bot = "Bot",
   Human = "Human",
 }
+
+export enum MenuOptions {
+  FoodMenu = "Carta del menú",
+  Order = "Quiero hacer mi pedido",
+}
+
+export enum ButtonOptions {
+  Human = "Ordenar ahora",
+}
+

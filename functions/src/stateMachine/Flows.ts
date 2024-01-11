@@ -1,5 +1,8 @@
 export const BOT_FLOWS = {
-  START: "START",
+  // Cuando inicia y envia mensaje con el menu de opciones
+  MENUOPTIONS: "MENU OPTIONS",
+
+  // Opciones del menu de opciones
   FOODMENU: "FOODMENU",
   HUMAN: "HUMAN",
 };

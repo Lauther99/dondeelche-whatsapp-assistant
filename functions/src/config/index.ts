@@ -8,3 +8,8 @@ export {
 
 // FIREBASE
 export { FirebaseApp } from "./firebase.config";
+
+// OTHER DATA
+export { FoodMenuPdfUrl } from "./otherData.config";
+
+

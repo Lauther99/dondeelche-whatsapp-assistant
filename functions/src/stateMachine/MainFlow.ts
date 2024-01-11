@@ -1,14 +1,14 @@
 import { BOT_FLOWS } from "./Flows";
 import * as type from "../types";
-import { MenuState } from "./states/BotStates";
+import { StartState, MenuOptionsState } from "./states/BotStates";
 import * as Firestore from "firebase-admin/firestore";
 
 
 export const getState = (state: string): MainState => {
     const states: { [key: string]: MainState } = {
-        [BOT_FLOWS.START]: new MenuState(),
-        // [BOT_FLOWS.MENU]: new MenuState(),
-        // [BOT_FLOWS.HUMAN]: new AttendedState(AttendedStateStatus.Attended),
+        [BOT_FLOWS.MENUOPTIONS]: new StartState(),
+        [BOT_FLOWS.FOODMENU]: new MenuOptionsState(),
+        [BOT_FLOWS.HUMAN]: new MenuOptionsState(),
     };
 
     if (!state) {

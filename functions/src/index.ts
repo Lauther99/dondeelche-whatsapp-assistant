@@ -5,6 +5,7 @@ import * as cors from "cors";
 import * as type from "./types/";
 import * as WhatsappUtils from "./whatsapp/utils";
 import * as Whatsapp from "./whatsapp/whatsapp";
+import { BOT_FLOWS } from "./stateMachine/Flows";
 
 const db = FirebaseApp.firestore();
 const app = express();
@@ -24,9 +25,11 @@ app.post("/send-whatsapp-message", async (req, res) => {
             res.status(204).json({ message: "Ok" });
             return;
         }
+        const WhatsAppMessages = new Whatsapp.WhatsAppMessages(db, userPhone, BOT_PHONE);
+        WhatsAppMessages.setLastFlow(BOT_FLOWS.HUMAN);
+        const waid = await WhatsAppMessages.sendMessagesFromFlutterFlow(message);
 
-        await Whatsapp.sendMessages(db, userPhone, BOT_PHONE, message);
-        return res.status(200).json({ message: "Ok" });
+        return res.status(200).json({ message: "Ok", waid: waid });
     } catch (error) {
         console.log(error);
         return res.status(400).json({ message: "Error" });
