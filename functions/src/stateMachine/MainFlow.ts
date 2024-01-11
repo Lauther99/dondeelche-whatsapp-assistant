@@ -9,6 +9,7 @@ export const getState = (state: string): MainState => {
         [BOT_FLOWS.MENUOPTIONS]: new StartState(),
         [BOT_FLOWS.FOODMENU]: new MenuOptionsState(),
         [BOT_FLOWS.HUMAN]: new MenuOptionsState(),
+        [BOT_FLOWS.ITERATIVE]: new MenuOptionsState(),
     };
 
     if (!state) {
@@ -30,24 +31,29 @@ export class MainFlow {
     private state!: MainState;
     private db!: Firestore.Firestore;
     private messageData!: type.Props;
+    private lastFlow!: string;
 
     constructor(db: Firestore.Firestore, state: string, messageData: type.Props) {
         this.setState(getState(state));
         this.setMessageData(messageData);
         this.setDb(db);
+        this.setLastFlow(state);
     }
 
-    public setState(state: MainState): void {
-        this.state = state;
+    public setState(newval: MainState): void {
+        this.state = newval;
     }
-    public setDb(db: Firestore.Firestore): void {
-        this.db = db;
+    public setDb(newval: Firestore.Firestore): void {
+        this.db = newval;
     }
-    public setMessageData(messageData: type.Props): void {
-        this.messageData = messageData;
+    public setMessageData(newval: type.Props): void {
+        this.messageData = newval;
+    }
+    public setLastFlow(newval: string): void {
+        this.lastFlow = newval;
     }
 
-    public async sendMessage(lastFlow: string): Promise<void> {
-        await this.state.sendMessage(this.db, this.messageData, lastFlow);
+    public async sendMessage(): Promise<void> {
+        await this.state.sendMessage(this.db, this.messageData, this.lastFlow);
     }
 }

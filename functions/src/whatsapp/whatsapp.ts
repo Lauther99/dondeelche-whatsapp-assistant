@@ -22,9 +22,9 @@ export const chatStateManager = async (
     messageData: type.Props,) => {
     if (messageData.messageInfo.type === "text") {
         const currentContact = await findContactByUserPhone(db, messageData.userPhoneNumber);
-        const currentStatus = currentContact?.chat_status ?? "Bot";
+        const currentStatus = currentContact?.chat_status ?? type.ChatStatus.BOT;
         const lastFlow = currentContact?.last_flow ?? BOT_FLOWS.MENUOPTIONS;
-        if (currentStatus === "Bot" && lastFlow === BOT_FLOWS.MENUOPTIONS) {
+        if (currentStatus === type.ChatStatus.BOT && lastFlow === BOT_FLOWS.MENUOPTIONS) {
             const mainFlow = new MainFlow(db, lastFlow, messageData);
             // Guardamos el mensaje del usuario
             await saveToChat(
@@ -34,14 +34,40 @@ export const chatStateManager = async (
                 messageData.messageInfo.content,
                 messageData.id,
                 lastFlow,
-                { userName: messageData.messageInfo.username }
+                { userName: messageData.messageInfo.username, is_iterative: false }
             );
 
             // Enviamos el respectivo mensaje
-            await mainFlow.sendMessage(lastFlow);
-        } else {
-            // currentStatus === "Bot" && lastFlow === "Lo que sea " ==> Si es un mensaje de texto, el status es bot pero el lastflow es otro, por ejemplo del alguna referencia del menu de opciones o quizas el usuario ya llego al final del proceso hay que enviarle un mensaje con el menu otra vez y para mas adelante conectarlo con openai
-            console.log("no responde porque no sabe");
+            await mainFlow.sendMessage();
+        } else if (currentStatus === type.ChatStatus.BOT) {
+            // Guardamos el mensaje del usuario
+            await saveToChat(
+                db,
+                messageData.userPhoneNumber,
+                messageData.userPhoneNumber,
+                messageData.messageInfo.content,
+                messageData.id,
+                lastFlow,
+                { is_iterative: true }
+            );
+
+            if (!currentContact?.is_iterative) {
+                // Le enviamos un mensaje
+                const mainFlow = new MainFlow(db, BOT_FLOWS.ITERATIVE, messageData);
+                await mainFlow.sendMessage();
+            }
+        } else if (currentStatus === type.ChatStatus.HUMAN) {
+            // Guardamos el mensaje del usuario
+            await saveToChat(
+                db,
+                messageData.userPhoneNumber,
+                messageData.userPhoneNumber,
+                messageData.messageInfo.content,
+                messageData.id,
+                lastFlow,
+                { userName: messageData.messageInfo.username, is_iterative: false, chat_status: type.ChatStatus.HUMAN }
+            );
+            console.log("Es atendido por la tia Diana");
         }
     } else if (messageData.messageInfo.type === "interactive") {
         const lastFlowFromMessage = GetStateFromMessage(messageData.messageInfo.content);
@@ -54,11 +80,10 @@ export const chatStateManager = async (
             messageData.messageInfo.content,
             messageData.id,
             lastFlowFromMessage,
-            { userName: messageData.messageInfo.username }
+            { userName: messageData.messageInfo.username, is_iterative: false }
         );
-
         // Enviamos el respectivo mensaje
-        mainFlow.sendMessage(lastFlowFromMessage);
+        mainFlow.sendMessage();
     } else {
         console.log("No es un mensaje de interacción válido");
         //await sendDefaultMessage(messageData, selectedStatus, db);
@@ -82,7 +107,7 @@ export class WhatsAppMessages {
     }
     public sendMessages = async (
         message: string,
-        isReaded?: boolean
+        options?: { isReaded?: boolean; chat_status?: type.ChatStatus }
     ) => {
         try {
             const r = await AxiosWhatsapp.post('/messages', {
@@ -103,7 +128,7 @@ export class WhatsAppMessages {
                 message,
                 waid,
                 this.lastFlow,
-                {is_readed: isReaded}
+                { is_readed: options?.isReaded, chat_status: options?.chat_status, is_iterative: false }
             );
 
             console.log('savechat succesfully');
@@ -146,7 +171,7 @@ export class WhatsAppMessages {
                 },
             });
             const waid = r.data.messages[0].id;
-            await saveToChat(this.db, this.userPhone, this.senderPhone, message, waid, this.lastFlow);
+            await saveToChat(this.db, this.userPhone, this.senderPhone, message, waid, this.lastFlow, { is_iterative: false });
         } catch (e) {
             if (isAxiosError(e)) {
                 console.log('sendWhatAppTemplateMessage axios', e);
@@ -227,8 +252,12 @@ export class WhatsAppInteractive {
         }
     };
 
-    public sendMenuOptions = async (message: string) => {
+    public sendMenuOptions = async (
+        message: string,
+        options?: { is_iterative?: boolean }
+    ) => {
         try {
+            const is_iterative = options?.is_iterative ?? false;
             const r = await AxiosWhatsapp.post("/messages", {
                 messaging_product: "whatsapp",
                 recipient_type: "individual",
@@ -260,7 +289,7 @@ export class WhatsAppInteractive {
                 },
             });
             const waid = r.data.messages[0].id;
-            await saveToChat(this.db, this.userPhone, this.senderPhone, message, waid, this.lastFlow);
+            await saveToChat(this.db, this.userPhone, this.senderPhone, message, waid, this.lastFlow, { is_iterative: is_iterative });
             console.log('savechat succesfully');
             return waid;
         } catch (e) {

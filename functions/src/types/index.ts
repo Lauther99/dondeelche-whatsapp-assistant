@@ -82,11 +82,12 @@ export type ContactsCollection = {
   last_message: MessageDataType,
   last_flow: string,
   photo: string,
+  is_iterative: boolean,
 }
 
 export enum ChatStatus {
-  Bot = "Bot",
-  Human = "Human",
+  BOT = "BOT",
+  HUMAN = "HUMAN",
 }
 
 export enum MenuOptions {
@@ -96,5 +97,6 @@ export enum MenuOptions {
 
 export enum ButtonOptions {
   Human = "Ordenar ahora",
+  Assistance = "Ordenar ahora",
 }
 

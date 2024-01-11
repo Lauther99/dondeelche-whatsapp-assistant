@@ -11,12 +11,15 @@ export const saveToChat = async (
     message: string,
     waid: string,
     last_flow: string,
-    options?: { userName?: string; is_readed?: boolean }
+    options?: { userName?: string; is_readed?: boolean, chat_status?: type.ChatStatus, is_iterative?: boolean}
 ) => {
     try {
         // const { userName = "DefaultUser", is_readed = true } = options || {};
         const userName = options?.userName ?? "Jhon Doe";
         const is_readed = options?.is_readed ?? true;
+        const chat_status = options?.chat_status ?? type.ChatStatus.BOT;
+        const is_iterative = options?.is_iterative ?? false;
+
         const newMessage: type.MessageDataType = {
             "sender": senderPhone,
             "content": message,
@@ -35,6 +38,8 @@ export const saveToChat = async (
                 messages: currentMessages, 
                 last_interaction: Firestore.Timestamp.fromDate(new Date()),
                 last_flow: last_flow,
+                chat_status: chat_status,
+                is_iterative: is_iterative
             });
             console.log("Conversación actualizada");
         } else { // Si no encuentra ningun chat, lo crea
@@ -46,9 +51,10 @@ export const saveToChat = async (
                     messages: [newMessage],
                     name: userName ?? "Jhon Doe",
                     phone_number: userPhone,
-                    chat_status: type.ChatStatus.Bot,
+                    chat_status: chat_status,
                     photo: getRandomPic(),
-                    last_flow: BOT_FLOWS.MENUOPTIONS
+                    last_flow: BOT_FLOWS.MENUOPTIONS,
+                    is_iterative: is_iterative
                 });
             console.log("Conversación creada");
         }

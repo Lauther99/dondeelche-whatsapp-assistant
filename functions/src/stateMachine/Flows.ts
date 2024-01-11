@@ -5,4 +5,7 @@ export const BOT_FLOWS = {
   // Opciones del menu de opciones
   FOODMENU: "FOODMENU",
   HUMAN: "HUMAN",
+
+  // Si itera varios mensajes
+  ITERATIVE: "ITERATIVE",
 };
