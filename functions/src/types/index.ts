@@ -68,9 +68,15 @@ export type Props = {
 export type MessageDataType = {
   sender: string,
   content: string,
-  is_readed: boolean,
   created_at: Firestore.Timestamp,
   waid: string,
+  is_document: boolean,
+  url_document: string
+}
+
+export type SunatDocumentsType = {
+  document_url: string,
+  created_at: Firestore.Timestamp,
 }
 
 export type ContactsCollection = {
@@ -79,10 +85,14 @@ export type ContactsCollection = {
   last_interaction: string,
   chat_status: ChatStatus,
   messages: Array<MessageDataType>,
+  unreaded_messages: Array<MessageDataType>,
   last_message: MessageDataType,
   last_flow: string,
   photo: string,
   is_iterative: boolean,
+  sunat_documents: SunatDocumentsType[],
+  cloudtask_date: Firestore.Timestamp,
+  active_cloudtask: boolean
 }
 
 export enum ChatStatus {

@@ -1,10 +1,11 @@
 import { isAxiosError } from "axios";
 import { AxiosWhatsapp } from "./axios/axiosWhatsapp";
 import * as Firestore from "firebase-admin/firestore";
-import { findContactByUserPhone, saveToChat } from "../firebase/contactsManager";
+import { findContactByUserPhone, saveToChat, saveDocumentToChat } from "../firebase/contactsManager";
 import * as type from "../types";
 import { MainFlow } from "../stateMachine/MainFlow";
 import { BOT_FLOWS } from "../stateMachine/Flows";
+import { scheduleCloudTask } from "../scheduler/scheduleCloudTask";
 
 const GetStateFromMessage = (
     message: string,
@@ -22,8 +23,11 @@ export const chatStateManager = async (
     messageData: type.Props,) => {
     if (messageData.messageInfo.type === "text") {
         const currentContact = await findContactByUserPhone(db, messageData.userPhoneNumber);
+
         const currentStatus = currentContact?.chat_status ?? type.ChatStatus.BOT;
         const lastFlow = currentContact?.last_flow ?? BOT_FLOWS.MENUOPTIONS;
+        const cloudtaskDate = currentContact?.cloudtask_date ?? Firestore.Timestamp.fromDate(new Date());
+
         if (currentStatus === type.ChatStatus.BOT && lastFlow === BOT_FLOWS.MENUOPTIONS) {
             const mainFlow = new MainFlow(db, lastFlow, messageData);
             // Guardamos el mensaje del usuario
@@ -67,7 +71,18 @@ export const chatStateManager = async (
                 lastFlow,
                 { userName: messageData.messageInfo.username, is_iterative: false, chat_status: type.ChatStatus.HUMAN }
             );
-            console.log("Es atendido por la tia Diana");
+
+            // Agendamos una fecha para el reboot
+            
+            const cloudtaskDateObject = cloudtaskDate.toDate();
+            const currentDate = new Date();
+
+            // Comparar las fechas
+            if (cloudtaskDateObject <= currentDate) {
+                await scheduleCloudTask(messageData.userPhoneNumber);
+            }
+
+            console.log("Es atendido por el cajero");
         }
     } else if (messageData.messageInfo.type === "interactive") {
         const lastFlowFromMessage = GetStateFromMessage(messageData.messageInfo.content);
@@ -226,7 +241,8 @@ export class WhatsAppInteractive {
     }
     public sendDocument = async (
         documentLink: string,
-        documentName: string
+        documentName: string,
+        options?: { isReaded?: boolean; chat_status?: type.ChatStatus }
     ) => {
         try {
             const r = await AxiosWhatsapp.post('/messages', {
@@ -241,6 +257,15 @@ export class WhatsAppInteractive {
             });
             const waid = r.data.messages[0].id;
             console.log('savechat succesfully');
+            await saveDocumentToChat(
+                this.db,
+                this.userPhone,
+                this.senderPhone,
+                documentLink,
+                waid,
+                this.lastFlow,
+                { is_readed: options?.isReaded, chat_status: options?.chat_status, is_iterative: false }
+            );
             return waid;
         } catch (e) {
             if (isAxiosError(e)) {

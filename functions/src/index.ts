@@ -6,6 +6,7 @@ import * as type from "./types/";
 import * as WhatsappUtils from "./whatsapp/utils";
 import * as Whatsapp from "./whatsapp/whatsapp";
 import { BOT_FLOWS } from "./stateMachine/Flows";
+import { updateChatStatus } from "./firebase/contactsManager";
 
 const db = FirebaseApp.firestore();
 const app = express();
@@ -29,6 +30,53 @@ app.post("/send-whatsapp-message", async (req, res) => {
         WhatsAppMessages.setLastFlow(BOT_FLOWS.HUMAN);
         const waid = await WhatsAppMessages.sendMessagesFromFlutterFlow(message);
 
+        return res.status(200).json({ message: "Ok", waid: waid });
+    } catch (error) {
+        console.log(error);
+        return res.status(400).json({ message: "Error" });
+    }
+});
+
+app.post("/reboot-chat-status", async (req, res) => {
+    try {
+        const userPhone = req.body.contact_phone;
+
+        res.set("Access-Control-Allow-Origin", "*");
+        if (req.method === "OPTIONS") {
+            // Send res to OPTIONS requests
+            res.set("Access-Control-Allow-Methods", ["GET", "POST"]);
+            res.set("Access-Control-Allow-Headers", "Content-Type");
+            res.set("Access-Control-Max-Age", "3600");
+            res.status(204).json({ message: "Ok" });
+            return;
+        }
+        await updateChatStatus(db, userPhone);
+
+        return res.status(200).json({ message: "Ok" });
+    } catch (error) {
+        console.log(error);
+        return res.status(400).json({ message: "Error" });
+    }
+});
+
+app.post("/send-whatsapp-document", async (req, res) => {
+    try {
+        const userPhone = req.body.receiver_phone;
+        const link = req.body.message_link;
+        const name = req.body.document_name ?? "Document";
+
+        res.set("Access-Control-Allow-Origin", "*");
+        if (req.method === "OPTIONS") {
+            // Send res to OPTIONS requests
+            res.set("Access-Control-Allow-Methods", ["GET", "POST"]);
+            res.set("Access-Control-Allow-Headers", "Content-Type");
+            res.set("Access-Control-Max-Age", "3600");
+            res.status(204).json({ message: "Ok" });
+            return;
+        }
+        const WhatsAppMessages = new Whatsapp.WhatsAppInteractive(db, userPhone, BOT_PHONE);
+        WhatsAppMessages.setLastFlow(BOT_FLOWS.HUMAN);
+        const waid = await WhatsAppMessages.sendDocument(link, name, { isReaded: true, chat_status: type.ChatStatus.HUMAN });
         return res.status(200).json({ message: "Ok", waid: waid });
     } catch (error) {
         console.log(error);
@@ -80,7 +128,4 @@ app.post("/wsp-webhook", async (req, res) => {
     }
 });
 
-
-
 export const whatsappbot = functions.https.onRequest(app);
-
