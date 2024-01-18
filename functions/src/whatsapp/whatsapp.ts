@@ -1,7 +1,7 @@
 import { isAxiosError } from "axios";
 import { AxiosWhatsapp } from "./axios/axiosWhatsapp";
 import * as Firestore from "firebase-admin/firestore";
-import { findContactByUserPhone, saveToChat, saveDocumentToChat } from "../firebase/contactsManager";
+import { findContactByUserPhone, saveToChat, saveDocumentToChat, saveUnreadedMessage } from "../firebase/contactsManager";
 import * as type from "../types";
 import { MainFlow } from "../stateMachine/MainFlow";
 import { BOT_FLOWS } from "../stateMachine/Flows";
@@ -27,22 +27,26 @@ export const chatStateManager = async (
         const currentStatus = currentContact?.chat_status ?? type.ChatStatus.BOT;
         const lastFlow = currentContact?.last_flow ?? BOT_FLOWS.MENUOPTIONS;
         const cloudtaskDate = currentContact?.cloudtask_date ?? Firestore.Timestamp.fromDate(new Date());
+        const isIterative = currentContact?.is_iterative ?? false;
 
         if (currentStatus === type.ChatStatus.BOT && lastFlow === BOT_FLOWS.MENUOPTIONS) {
             const mainFlow = new MainFlow(db, lastFlow, messageData);
             // Guardamos el mensaje del usuario
-            await saveToChat(
-                db,
-                messageData.userPhoneNumber,
-                messageData.userPhoneNumber,
-                messageData.messageInfo.content,
-                messageData.id,
-                lastFlow,
-                { userName: messageData.messageInfo.username, is_iterative: false }
-            );
+            if (!isIterative) {
+                await saveToChat(
+                    db,
+                    messageData.userPhoneNumber,
+                    messageData.userPhoneNumber,
+                    messageData.messageInfo.content,
+                    messageData.id,
+                    lastFlow,
+                    { userName: messageData.messageInfo.username, is_iterative: true }
+                );
 
-            // Enviamos el respectivo mensaje
-            await mainFlow.sendMessage();
+                // Enviamos el respectivo mensaje
+                await mainFlow.sendMessage();
+            }
+
         } else if (currentStatus === type.ChatStatus.BOT) {
             // Guardamos el mensaje del usuario
             await saveToChat(
@@ -61,27 +65,37 @@ export const chatStateManager = async (
                 await mainFlow.sendMessage();
             }
         } else if (currentStatus === type.ChatStatus.HUMAN) {
-            // Guardamos el mensaje del usuario
-            await saveToChat(
-                db,
-                messageData.userPhoneNumber,
-                messageData.userPhoneNumber,
-                messageData.messageInfo.content,
-                messageData.id,
-                lastFlow,
-                { userName: messageData.messageInfo.username, is_iterative: false, chat_status: type.ChatStatus.HUMAN }
-            );
-
-            // Agendamos una fecha para el reboot
-            
             const cloudtaskDateObject = cloudtaskDate.toDate();
             const currentDate = new Date();
-
             // Comparar las fechas
             if (cloudtaskDateObject <= currentDate) {
+                await saveUnreadedMessage(
+                    db,
+                    messageData.userPhoneNumber,
+                    messageData.userPhoneNumber,
+                    messageData.messageInfo.content,
+                    messageData.id,
+                    lastFlow,
+                    {
+                        userName: messageData.messageInfo.username,
+                        is_iterative: false,
+                        chat_status: type.ChatStatus.HUMAN,
+                        activate_cloudtask_date: true
+                    }
+                );
                 await scheduleCloudTask(messageData.userPhoneNumber);
+                console.log("Se agendó el cloudtask date");
+            } else {
+                await saveUnreadedMessage(
+                    db,
+                    messageData.userPhoneNumber,
+                    messageData.userPhoneNumber,
+                    messageData.messageInfo.content,
+                    messageData.id,
+                    lastFlow,
+                    { userName: messageData.messageInfo.username, is_iterative: false, chat_status: type.ChatStatus.HUMAN }
+                );
             }
-
             console.log("Es atendido por el cajero");
         }
     } else if (messageData.messageInfo.type === "interactive") {
@@ -122,9 +136,10 @@ export class WhatsAppMessages {
     }
     public sendMessages = async (
         message: string,
-        options?: { isReaded?: boolean; chat_status?: type.ChatStatus }
+        options?: { isUnreaded?: boolean; chat_status?: type.ChatStatus; }
     ) => {
         try {
+            const isUnreaded = options?.isUnreaded ?? false;
             const r = await AxiosWhatsapp.post('/messages', {
                 messaging_product: 'whatsapp',
                 recipient_type: 'individual',
@@ -136,16 +151,27 @@ export class WhatsAppMessages {
                 },
             });
             const waid = r.data.messages[0].id;
-            await saveToChat(
-                this.db,
-                this.userPhone,
-                this.senderPhone,
-                message,
-                waid,
-                this.lastFlow,
-                { is_readed: options?.isReaded, chat_status: options?.chat_status, is_iterative: false }
-            );
-
+            if (isUnreaded) {
+                await saveUnreadedMessage(
+                    this.db,
+                    this.userPhone,
+                    this.senderPhone,
+                    message,
+                    waid,
+                    this.lastFlow,
+                    { chat_status: options?.chat_status, is_iterative: false }
+                );
+            } else {
+                await saveToChat(
+                    this.db,
+                    this.userPhone,
+                    this.senderPhone,
+                    message,
+                    waid,
+                    this.lastFlow,
+                    { chat_status: options?.chat_status, is_iterative: false }
+                );
+            }
             console.log('savechat succesfully');
             return waid;
         } catch (e) {
@@ -242,6 +268,7 @@ export class WhatsAppInteractive {
     public sendDocument = async (
         documentLink: string,
         documentName: string,
+        isForSunat: boolean,
         options?: { isReaded?: boolean; chat_status?: type.ChatStatus }
     ) => {
         try {
@@ -264,6 +291,7 @@ export class WhatsAppInteractive {
                 documentLink,
                 waid,
                 this.lastFlow,
+                isForSunat,
                 { is_readed: options?.isReaded, chat_status: options?.chat_status, is_iterative: false }
             );
             return waid;

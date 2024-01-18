@@ -74,9 +74,10 @@ export type MessageDataType = {
   url_document: string
 }
 
-export type SunatDocumentsType = {
+export type DocumentsType = {
   document_url: string,
   created_at: Firestore.Timestamp,
+  is_for_sunat: boolean
 }
 
 export type ContactsCollection = {
@@ -90,9 +91,8 @@ export type ContactsCollection = {
   last_flow: string,
   photo: string,
   is_iterative: boolean,
-  sunat_documents: SunatDocumentsType[],
+  documents: DocumentsType[],
   cloudtask_date: Firestore.Timestamp,
-  active_cloudtask: boolean
 }
 
 export enum ChatStatus {

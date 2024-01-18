@@ -12,7 +12,7 @@ abstract class BaseMenuState {
     public async SendMenuOptions(db: Firestore.Firestore, messageData: type.Props, lastFlow: string): Promise<void> {
         const whatsappService = new WhatsAppInteractive(db, messageData.userPhoneNumber, messageData.botPhoneNumber);
         whatsappService.setLastFlow(lastFlow);
-        await whatsappService.sendMenuOptions(TemplateMessages.StartMessage);
+        await whatsappService.sendMenuOptions(TemplateMessages.StartMessage, { is_iterative: true });
     }
     public async SendFoodMenu(db: Firestore.Firestore, messageData: type.Props, lastFlow: string): Promise<void> {
         const whatsappInteractiveService = new WhatsAppInteractive(db, messageData.userPhoneNumber, messageData.botPhoneNumber);
@@ -21,7 +21,7 @@ abstract class BaseMenuState {
         whatsappMessagesService.setLastFlow(lastFlow);
 
         await whatsappMessagesService.sendMessages(TemplateMessages.FoodMenuPDFMessage);
-        await whatsappInteractiveService.sendDocument(FoodMenuPdfUrl, "Carta Donde el Che"); //TODO: Grabar algo respecto al PDF en firebase para que se vea en la interfaz
+        await whatsappInteractiveService.sendDocument(FoodMenuPdfUrl, "Carta Donde el Che", false); //TODO: Grabar algo respecto al PDF en firebase para que se vea en la interfaz
         await whatsappMessagesService.sendMessageWithButton(TemplateMessages.OrderMenuMessage, type.ButtonOptions.Human);
     }
     public async SendHumanAssistance(db: Firestore.Firestore, messageData: type.Props, lastFlow: string): Promise<void> {
@@ -29,13 +29,13 @@ abstract class BaseMenuState {
         whatsappMessagesService.setLastFlow(lastFlow);
         await whatsappMessagesService.sendMessages(
             TemplateMessages.SendHumanAssistanceMessage,
-            { isReaded: false, chat_status: type.ChatStatus.HUMAN }
+            { isUnreaded: true, chat_status: type.ChatStatus.HUMAN }
         );
     }
     public async SendIterativeMessage(db: Firestore.Firestore, messageData: type.Props, lastFlow: string): Promise<void> {
         const whatsappMessagesService = new WhatsAppInteractive(db, messageData.userPhoneNumber, messageData.botPhoneNumber);
         whatsappMessagesService.setLastFlow(lastFlow);
-        await whatsappMessagesService.sendMenuOptions(TemplateMessages.NotValidOptionMessage, {is_iterative: true});
+        await whatsappMessagesService.sendMenuOptions(TemplateMessages.NotValidOptionMessage, { is_iterative: true });
     }
 }
 

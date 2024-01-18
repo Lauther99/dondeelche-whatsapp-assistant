@@ -4,7 +4,7 @@ const { CloudTasksClient } = require('@google-cloud/tasks');
 export async function scheduleCloudTask(contact_phone: string) {
     const db = Firestore.getFirestore();
 
-    const project = "dondeelchebot-dev";
+    const project = "dondeelche-bot-stage";
     const location = 'us-central1';
     const queue = "reboot-status-queue";
     const taskClient = new CloudTasksClient();
@@ -13,16 +13,14 @@ export async function scheduleCloudTask(contact_phone: string) {
     //se hace el query del contacto
     let contact = await db.collection("contacts").doc(contact_phone).get();
     let contactDate: Firestore.Timestamp = contact.get("cloudtask_date") ?? Firestore.Timestamp.fromDate(new Date());
-    let newDate = contactDate.toDate();
-    newDate.setHours(newDate.getHours() + 3);
 
-    const task = getTask(contact_phone, newDate.getTime() / 1000);
+    const task = getTask(contact_phone, contactDate.toDate().getTime() / 1000);
     await taskClient.createTask({ parent: queuePath, task: task });
 }
 
-function getPayload(phone_number: string): string {
+function getPayload(contact_phone: string): string {
     const body = {
-        phone_number: phone_number,
+        contact_phone: contact_phone,
     }
     return Buffer.from(JSON.stringify(body)).toString('base64');
 }

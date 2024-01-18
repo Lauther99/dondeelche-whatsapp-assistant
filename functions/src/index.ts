@@ -76,7 +76,7 @@ app.post("/send-whatsapp-document", async (req, res) => {
         }
         const WhatsAppMessages = new Whatsapp.WhatsAppInteractive(db, userPhone, BOT_PHONE);
         WhatsAppMessages.setLastFlow(BOT_FLOWS.HUMAN);
-        const waid = await WhatsAppMessages.sendDocument(link, name, { isReaded: true, chat_status: type.ChatStatus.HUMAN });
+        const waid = await WhatsAppMessages.sendDocument(link, name, true,{ isReaded: true, chat_status: type.ChatStatus.HUMAN });
         return res.status(200).json({ message: "Ok", waid: waid });
     } catch (error) {
         console.log(error);
