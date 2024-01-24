@@ -39,8 +39,8 @@ switch (enviroment) {
         break;
 }
 
-export const WHATSAPP_TOKEN = functions.config().whatsapp.token || "";
-export { WHATSAPP_URL, BOT_PHONE, BOT_PHONE_ID }
+const WHATSAPP_TOKEN = functions.config().whatsapp.token || "";
+export { WHATSAPP_TOKEN, WHATSAPP_URL, BOT_PHONE, BOT_PHONE_ID }
 
 
 
