@@ -1,8 +1,8 @@
 import * as Firestore from "firebase-admin/firestore";
 const { CloudTasksClient } = require('@google-cloud/tasks');
 
-export async function scheduleCloudTask(contact_phone: string) {
-    const db = Firestore.getFirestore();
+export async function scheduleCloudTask(contact_phone: string, contact_data : any) {
+    // const db = Firestore.getFirestore();
 
     const project = "dondeelche-bot-stage";
     const location = 'us-central1';
@@ -11,8 +11,8 @@ export async function scheduleCloudTask(contact_phone: string) {
     //Cola de tasks
     const queuePath = taskClient.queuePath(project, location, queue);
     //se hace el query del contacto
-    let contact = await db.collection("contacts").doc(contact_phone).get();
-    let contactDate: Firestore.Timestamp = contact.get("cloudtask_date") ?? Firestore.Timestamp.fromDate(new Date());
+    // let contact = await db.collection("contacts").doc(contact_phone).get();
+    let contactDate: Firestore.Timestamp = contact_data.get("cloudtask_date") ?? Firestore.Timestamp.fromDate(new Date());
 
     const task = getTask(contact_phone, contactDate.toDate().getTime() / 1000);
     await taskClient.createTask({ parent: queuePath, task: task });

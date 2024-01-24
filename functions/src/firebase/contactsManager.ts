@@ -11,17 +11,16 @@ export const saveToChat = async (
     waid: string,
     last_flow: string,
     options?: {
-        userName?: string;
-        chat_status?: type.ChatStatus,
+        chat_assistant?: type.ChatAssistant,
         is_iterative?: boolean,
         activate_cloudtask_date?: boolean,
     }
 ) => {
     try {
-        const userName = options?.userName ?? "Jhon Doe";
-        const chat_status = options?.chat_status ?? type.ChatStatus.BOT;
         const is_iterative = options?.is_iterative ?? false;
-        const cloudTaskDateBool = options?.activate_cloudtask_date ?? false;
+        const chatAssistant = options?.chat_assistant ?? type.ChatAssistant.BOT;
+        const contactRef = db.collection("contacts").doc(userPhone);
+        const doc = await contactRef.get();
 
         const newMessage: type.MessageDataType = {
             "sender": senderPhone,
@@ -31,20 +30,19 @@ export const saveToChat = async (
             "is_document": false,
             "url_document": ""
         };
-        const contactRef = db.collection("contacts").doc(userPhone);
-        const doc = await contactRef.get();
 
-        let newDate = new Date();
-        let contactDate: Firestore.Timestamp = doc.get("cloudtask_date") ?? Firestore.Timestamp.fromDate(new Date());
+        // const cloudTaskDateBool = options?.activate_cloudtask_date ?? false;
+        // let newDate = new Date();
+        // let contactDate: Firestore.Timestamp = doc.get("cloudtask_date") ?? Firestore.Timestamp.fromDate(new Date());
 
-        if (cloudTaskDateBool) {
-            newDate = contactDate.toDate();
-            newDate.setHours(newDate.getHours() + 3);
-        } else {
-            if (contactDate.toDate() > newDate) {
-                newDate = contactDate.toDate();
-            }
-        }
+        // if (cloudTaskDateBool) {
+        //     newDate = contactDate.toDate();
+        //     newDate.setHours(newDate.getHours() + 3);
+        // } else {
+        //     if (contactDate.toDate() > newDate) {
+        //         newDate = contactDate.toDate();
+        //     }
+        // }
 
         if (doc.exists) { // Si encuentra un chat, lo actualiza
             const currentMessages: Array<type.MessageDataType> = doc.data()?.messages || [];
@@ -55,9 +53,9 @@ export const saveToChat = async (
                 messages: currentMessages,
                 last_interaction: Firestore.Timestamp.fromDate(new Date()),
                 last_flow: last_flow,
-                chat_status: chat_status,
+                chat_assistant: chatAssistant,
                 is_iterative: is_iterative,
-                cloudtask_date: newDate,
+                // cloudtask_date: newDate,
             });
             console.log("Conversación actualizada");
         } else { // Si no encuentra ningun chat, lo crea
@@ -67,13 +65,12 @@ export const saveToChat = async (
                     last_interaction: Firestore.Timestamp.fromDate(new Date()),
                     last_message: newMessage,
                     messages: [newMessage],
-                    name: userName ?? "Jhon Doe",
                     phone_number: userPhone,
-                    chat_status: chat_status,
                     photo: getRandomPic(),
+                    chat_assistant: chatAssistant,
                     last_flow: BOT_FLOWS.MENUOPTIONS,
                     is_iterative: is_iterative,
-                    cloudtask_date: newDate,
+                    // cloudtask_date: newDate,
                 });
             console.log("Conversación creada");
         }
@@ -84,37 +81,37 @@ export const saveToChat = async (
 };
 
 export const saveDocumentToChat = async (
-    db: Firestore.Firestore,
-    userPhone: string,
-    senderPhone: string,
-    urlDocument: string,
-    waid: string,
-    last_flow: string,
-    isForSunat: boolean,
-    options?: { userName?: string; is_readed?: boolean, chat_status?: type.ChatStatus, is_iterative?: boolean }
+    props: {
+        db: Firestore.Firestore,
+        userPhone: string,
+        senderPhone: string,
+        urlDocument: string,
+        waid: string,
+        last_flow: string,
+        isForSunat: boolean,
+    },
+    options?: { chat_assistant?: type.ChatAssistant, is_iterative?: boolean }
 ) => {
     try {
-        const userName = options?.userName ?? "Jhon Doe";
-        // const is_readed = options?.is_readed ?? true;
-        const chat_status = options?.chat_status ?? type.ChatStatus.BOT;
+        const chat_assistant = options?.chat_assistant ?? type.ChatAssistant.BOT;
         const is_iterative = options?.is_iterative ?? false;
 
         const newMessage: type.MessageDataType = {
-            "sender": senderPhone,
+            "sender": props.senderPhone,
             "content": "",
             "created_at": Firestore.Timestamp.fromDate(new Date()),
-            "waid": waid,
+            "waid": props.waid,
             "is_document": true,
-            "url_document": urlDocument
+            "url_document": props.urlDocument
         };
 
         const newDocument: type.DocumentsType = {
-            document_url: urlDocument,
+            document_url: props.urlDocument,
             created_at: Firestore.Timestamp.fromDate(new Date()),
-            is_for_sunat: isForSunat
+            is_for_sunat: props.isForSunat
         }
 
-        const contactRef = db.collection("contacts").doc(userPhone);
+        const contactRef = props.db.collection("contacts").doc(props.userPhone);
         const doc = await contactRef.get();
 
         if (doc.exists) { // Si encuentra un chat, lo actualiza
@@ -127,22 +124,21 @@ export const saveDocumentToChat = async (
                 last_message: newMessage,
                 messages: currentMessages,
                 last_interaction: Firestore.Timestamp.fromDate(new Date()),
-                last_flow: last_flow,
-                chat_status: chat_status,
+                last_flow: props.last_flow,
+                chat_assistant: chat_assistant,
                 is_iterative: is_iterative,
                 documents: curretDocuments
             });
             console.log("Conversación actualizada");
         } else { // Si no encuentra ningun chat, lo crea
-            await db.collection("contacts")
-                .doc(userPhone)
+            await props.db.collection("contacts")
+                .doc(props.userPhone)
                 .create({
                     last_interaction: Firestore.Timestamp.fromDate(new Date()),
                     last_message: newMessage,
                     messages: [newMessage],
-                    name: userName ?? "Jhon Doe",
-                    phone_number: userPhone,
-                    chat_status: chat_status,
+                    phone_number: props.userPhone,
+                    chat_status: chat_assistant,
                     photo: getRandomPic(),
                     last_flow: BOT_FLOWS.MENUOPTIONS,
                     is_iterative: is_iterative,
@@ -186,12 +182,10 @@ export const updateChatStatus = async (
         const cloudtaskDateObject = cloudtaskDate.toDate();
         cloudtaskDateObject.setHours(cloudtaskDateObject.getHours() + 3);
 
-        // const gmtMinusFiveDate = new Date(cloudtaskDateObject.toLocaleString("en-US", { timeZone: "America/New_York" }));
-
         if (doc.exists) { // Si encuentra un chat, lo actualiza
             await doc.ref.update({
                 cloudtask_date: cloudtaskDateObject,
-                chat_status: type.ChatStatus.BOT,
+                chat_status: type.ChatAssistant.BOT,
                 last_flow: BOT_FLOWS.MENUOPTIONS,
                 is_iterative: false
             });
@@ -205,89 +199,89 @@ export const updateChatStatus = async (
     }
 };
 
-export const saveUnreadedMessage = async (
-    db: Firestore.Firestore,
-    userPhone: string,
-    senderPhone: string,
-    message: string,
-    waid: string,
-    last_flow: string,
-    options?: {
-        userName?: string;
-        is_readed?: boolean,
-        chat_status?: type.ChatStatus,
-        is_iterative?: boolean,
-        activate_cloudtask_date?: boolean,
-    }
-) => {
-    try {
-        // const { userName = "DefaultUser", is_readed = true } = options || {};
-        const userName = options?.userName ?? "Jhon Doe";
-        // const is_readed = options?.is_readed ?? true;
-        const chat_status = options?.chat_status ?? type.ChatStatus.BOT;
-        const is_iterative = options?.is_iterative ?? false;
-        const cloudTaskDateBool = options?.activate_cloudtask_date ?? false;
+// export const saveUnreadedMessage = async (
+//     db: Firestore.Firestore,
+//     userPhone: string,
+//     senderPhone: string,
+//     message: string,
+//     waid: string,
+//     last_flow: string,
+//     options?: {
+//         userName?: string;
+//         is_readed?: boolean,
+//         chat_status?: type.ChatStatus,
+//         is_iterative?: boolean,
+//         activate_cloudtask_date?: boolean,
+//     }
+// ) => {
+//     try {
+//         // const { userName = "DefaultUser", is_readed = true } = options || {};
+//         const userName = options?.userName ?? "Jhon Doe";
+//         // const is_readed = options?.is_readed ?? true;
+//         const chat_status = options?.chat_status ?? type.ChatStatus.BOT;
+//         const is_iterative = options?.is_iterative ?? false;
+//         const cloudTaskDateBool = options?.activate_cloudtask_date ?? false;
 
-        const newMessage: type.MessageDataType = {
-            "sender": senderPhone,
-            "content": message,
-            "created_at": Firestore.Timestamp.fromDate(new Date()),
-            "waid": waid,
-            "is_document": false,
-            "url_document": ""
-        };
-        const contactRef = db.collection("contacts").doc(userPhone);
-        const doc = await contactRef.get();
+//         const newMessage: type.MessageDataType = {
+//             "sender": senderPhone,
+//             "content": message,
+//             "created_at": Firestore.Timestamp.fromDate(new Date()),
+//             "waid": waid,
+//             "is_document": false,
+//             "url_document": ""
+//         };
+//         const contactRef = db.collection("contacts").doc(userPhone);
+//         const doc = await contactRef.get();
 
-        let newDate = new Date();
-        let contactDate: Firestore.Timestamp = doc.get("cloudtask_date") ?? Firestore.Timestamp.fromDate(new Date());
+//         let newDate = new Date();
+//         let contactDate: Firestore.Timestamp = doc.get("cloudtask_date") ?? Firestore.Timestamp.fromDate(new Date());
 
-        if (cloudTaskDateBool) {
-            newDate = contactDate.toDate();
-            newDate.setHours(newDate.getHours() + 3);
-        } else {
-            if (contactDate.toDate() > newDate) {
-                newDate = contactDate.toDate();
-            }
-        }
+//         if (cloudTaskDateBool) {
+//             newDate = contactDate.toDate();
+//             newDate.setHours(newDate.getHours() + 3);
+//         } else {
+//             if (contactDate.toDate() > newDate) {
+//                 newDate = contactDate.toDate();
+//             }
+//         }
 
-        if (doc.exists) { // Si encuentra un chat, lo actualiza
-            const currentMessages: Array<type.MessageDataType> = doc.data()?.messages || [];
-            const unreadedMessages: Array<type.MessageDataType> = doc.data()?.unreaded_messages || [];
-            currentMessages.push(newMessage);
-            unreadedMessages.push(newMessage);
+//         if (doc.exists) { // Si encuentra un chat, lo actualiza
+//             const currentMessages: Array<type.MessageDataType> = doc.data()?.messages || [];
+//             const unreadedMessages: Array<type.MessageDataType> = doc.data()?.unreaded_messages || [];
+//             currentMessages.push(newMessage);
+//             unreadedMessages.push(newMessage);
 
-            await doc.ref.update({
-                last_message: newMessage,
-                messages: currentMessages,
-                last_interaction: Firestore.Timestamp.fromDate(new Date()),
-                last_flow: last_flow,
-                chat_status: chat_status,
-                is_iterative: is_iterative,
-                cloudtask_date: newDate,
-                unreaded_messages: unreadedMessages,
-            });
-            console.log("Conversación actualizada");
-        } else { // Si no encuentra ningun chat, lo crea
-            await db.collection("contacts")
-                .doc(userPhone)
-                .create({
-                    last_interaction: Firestore.Timestamp.fromDate(new Date()),
-                    last_message: newMessage,
-                    messages: [newMessage],
-                    name: userName ?? "Jhon Doe",
-                    phone_number: userPhone,
-                    chat_status: chat_status,
-                    photo: getRandomPic(),
-                    last_flow: BOT_FLOWS.MENUOPTIONS,
-                    is_iterative: is_iterative,
-                    unreaded_messages: [newMessage],
-                    cloudtask_date: newDate,
-                });
-            console.log("Conversación creada");
-        }
-    } catch (error) {
-        console.log("Error en saveToChat:", error);
-        return;
-    }
-};
+//             await doc.ref.update({
+//                 last_message: newMessage,
+//                 messages: currentMessages,
+//                 last_interaction: Firestore.Timestamp.fromDate(new Date()),
+//                 last_flow: last_flow,
+//                 chat_status: chat_status,
+//                 is_iterative: is_iterative,
+//                 cloudtask_date: newDate,
+//                 unreaded_messages: unreadedMessages,
+//             });
+//             console.log("Conversación actualizada");
+//         } else { // Si no encuentra ningun chat, lo crea
+//             await db.collection("contacts")
+//                 .doc(userPhone)
+//                 .create({
+//                     last_interaction: Firestore.Timestamp.fromDate(new Date()),
+//                     last_message: newMessage,
+//                     messages: [newMessage],
+//                     name: userName ?? "Jhon Doe",
+//                     phone_number: userPhone,
+//                     chat_status: chat_status,
+//                     photo: getRandomPic(),
+//                     last_flow: BOT_FLOWS.MENUOPTIONS,
+//                     is_iterative: is_iterative,
+//                     unreaded_messages: [newMessage],
+//                     cloudtask_date: newDate,
+//                 });
+//             console.log("Conversación creada");
+//         }
+//     } catch (error) {
+//         console.log("Error en saveToChat:", error);
+//         return;
+//     }
+// };

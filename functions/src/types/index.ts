@@ -84,7 +84,7 @@ export type ContactsCollection = {
   name: string,
   number_phone: string,
   last_interaction: string,
-  chat_status: ChatStatus,
+  chat_assistant: ChatAssistant,
   messages: Array<MessageDataType>,
   unreaded_messages: Array<MessageDataType>,
   last_message: MessageDataType,
@@ -93,11 +93,13 @@ export type ContactsCollection = {
   is_iterative: boolean,
   documents: DocumentsType[],
   cloudtask_date: Firestore.Timestamp,
+  cloudtask_ids: string[],
 }
 
-export enum ChatStatus {
+export enum ChatAssistant {
   BOT = "BOT",
   HUMAN = "HUMAN",
+  GPT = "GPT",
 }
 
 export enum MenuOptions {
@@ -106,7 +108,6 @@ export enum MenuOptions {
 }
 
 export enum ButtonOptions {
-  Human = "Ordenar ahora",
-  Assistance = "Ordenar ahora",
+  Order = "Ordenar ahora",
 }
 
