@@ -8,10 +8,8 @@ import * as Firestore from "firebase-admin/firestore";
 export const getBotState = (state: string): BotState => {
     const states: { [key: string]: BotState } = {
         [BOT_FLOWS.MENUOPTIONS]: new StartState(),
-        [BOT_FLOWS.FOODMENU]: new MenuOptionsState(),
-        [BOT_FLOWS.ITERATIVE]: new MenuOptionsState(),
-        [BOT_FLOWS.GPT_INIT_CONVERSATION]: new GPTOptionsState(BOT_FLOWS.GPT_INIT_CONVERSATION),
-        [BOT_FLOWS.GPT_TAKE_ORDER]: new GPTOptionsState(BOT_FLOWS.GPT_TAKE_ORDER),
+        [BOT_FLOWS.FOODMENU || BOT_FLOWS.ITERATIVE]: new MenuOptionsState(),
+        [BOT_FLOWS.GPT_ORDER]: new GPTOptionsState(),
     };
     if (!state) console.log("user last flow is null", state);
     if (!states[state]) console.log("State not found", state);

@@ -15,8 +15,8 @@ const GetStateFromInteractiveMessage = (
         [type.MenuOptions.FoodMenu]: BOT_FLOWS.FOODMENU,
 
         // Asistente: GPT
-        [type.MenuOptions.Order]: BOT_FLOWS.GPT_INIT_CONVERSATION,
-        [type.ButtonOptions.Order]: BOT_FLOWS.GPT_INIT_CONVERSATION,
+        [type.MenuOptions.Order]: BOT_FLOWS.GPT_ORDER,
+        [type.ButtonOptions.Order]: BOT_FLOWS.GPT_ORDER,
 
         // Asistente: HUMANO
     };
@@ -71,7 +71,7 @@ export const chatStateManager = async (
         } else if (currentAssistant === type.ChatAssistant.GPT) {
             if (currentContact) {
                 // Aqui es cuando una persona ya esta hablando con gpt
-                const gptFlow = new BotFlow(db, "GPT_TAKE_ORDER", messageData,);
+                const gptFlow = new BotFlow(db, BOT_FLOWS.GPT_ORDER, messageData,);
                 gptFlow.sendMessage();
             }
             // const cloudtaskDateObject = cloudtaskDate.toDate();
@@ -111,7 +111,7 @@ export const chatStateManager = async (
         // const contact = findContactByUserPhone(db, messageData.userPhoneNumber);
 
         const lastFlowFromInteractiveMessage = GetStateFromInteractiveMessage(messageData.messageInfo.content);
-        const chat_assistant = lastFlowFromInteractiveMessage === BOT_FLOWS.GPT_INIT_CONVERSATION ? type.ChatAssistant.GPT : type.ChatAssistant.BOT
+        const chat_assistant = lastFlowFromInteractiveMessage === BOT_FLOWS.GPT_ORDER ? type.ChatAssistant.GPT : type.ChatAssistant.BOT
         await saveToChat(
             db,
             messageData.userPhoneNumber,
