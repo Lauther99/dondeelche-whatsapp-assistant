@@ -10,7 +10,7 @@ export {
 export { FirebaseApp } from "./firebase.config";
 
 // OPENAI
-export { OPENAI_API_KEY } from "./openai.config";
+export { OPENAI_API_KEY, openaiChatCompletion } from "./openai.config";
 
 // OTHER DATA
 export { FoodMenuPdfUrl } from "./otherData.config";
