@@ -71,7 +71,14 @@ export type MessageDataType = {
   created_at: Firestore.Timestamp,
   waid: string,
   is_document: boolean,
-  url_document: string
+  url_document?: string
+  is_interactive: boolean,
+  interactive_message_info?: InteractiveMessageDataType
+}
+
+export type InteractiveMessageDataType = {
+  id: string,
+  content: string
 }
 
 export type DocumentsType = {
@@ -82,6 +89,7 @@ export type DocumentsType = {
 
 export type ContactsCollection = {
   name: string,
+  address: string,
   number_phone: string,
   last_interaction: string,
   chat_assistant: ChatAssistant,

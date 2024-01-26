@@ -6,6 +6,7 @@ import { WhatsAppInteractive, WhatsAppMessages } from "../../whatsapp/whatsapp";
 import { BOT_FLOWS } from "../Flows";
 import * as TemplateMessages from "../../whatsapp/templates/messages";
 import { FoodMenuPdfUrl } from "../../config";
+import { INTERACTIVE_FLOWS } from "../../stateMachine/InteractiveMessagesFlows";
 
 
 abstract class BaseMenuState {
@@ -22,7 +23,11 @@ abstract class BaseMenuState {
 
         await whatsappMessagesService.sendMessages(TemplateMessages.FoodMenuPDFMessage);
         await whatsappInteractiveService.sendDocument({ documentLink: FoodMenuPdfUrl, documentName: "Carta Donde el Che", isForSunat: false });
-        await whatsappMessagesService.sendMessageWithButton(TemplateMessages.OrderMenuMessage, type.ButtonOptions.Order);
+        await whatsappMessagesService.sendMessageWithButton(
+            TemplateMessages.OrderMenuMessage,
+            type.ButtonOptions.Order,
+            INTERACTIVE_FLOWS.ORDER_BUTTON
+        );
     }
     public async SendIterativeMessage(db: Firestore.Firestore, messageData: type.Props, lastFlow: string,): Promise<void> {
         const whatsappMessagesService = new WhatsAppInteractive(db, messageData.userPhoneNumber, messageData.botPhoneNumber,);

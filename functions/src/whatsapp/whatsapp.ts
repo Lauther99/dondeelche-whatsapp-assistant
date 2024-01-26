@@ -1,133 +1,132 @@
 import { isAxiosError } from "axios";
 import { AxiosWhatsapp } from "./axios/axiosWhatsapp";
 import * as Firestore from "firebase-admin/firestore";
-import { findContactByUserPhone, saveToChat, saveDocumentToChat } from "../firebase/contactsManager";
+import { findContactByUserPhone, saveToChat, saveDocumentToChat, saveInteractiveMessageToChat } from "../firebase/contactsManager";
 import * as type from "../types";
 import { BotFlow } from "../stateMachine/AppFlows";
 import { BOT_FLOWS } from "../stateMachine/Flows";
+import { INTERACTIVE_FLOWS, GetStateFromInteractiveMessage } from "../stateMachine/InteractiveMessagesFlows";
 // import { scheduleCloudTask } from "../scheduler/scheduleCloudTask";
 
-const GetStateFromInteractiveMessage = (
-    message: string,
-): string => {
-    const states: { [key: string]: string } = {
-        // Asistente: BOT
-        [type.MenuOptions.FoodMenu]: BOT_FLOWS.FOODMENU,
 
-        // Asistente: GPT
-        [type.MenuOptions.Order]: BOT_FLOWS.GPT_ORDER,
-        [type.ButtonOptions.Order]: BOT_FLOWS.GPT_ORDER,
-
-        // Asistente: HUMANO
-    };
-    return states[message] || "DEFAULT";
-};
 
 export const chatStateManager = async (
     db: Firestore.Firestore,
     messageData: type.Props,) => {
-    if (messageData.messageInfo.type === "text") {
+    try {
         const currentContact = await findContactByUserPhone(db, messageData.userPhoneNumber);
-        const currentAssistant = currentContact?.chat_assistant ?? type.ChatAssistant.BOT;
-        const lastFlowFromTextMessage = currentContact?.last_flow ?? BOT_FLOWS.MENUOPTIONS;
-        const isIterative = currentContact?.is_iterative ?? false;
 
-        // const cloudtaskDate = currentContact?.cloudtask_date ?? Firestore.Timestamp.fromDate(new Date());
+        if (messageData.messageInfo.type === "text") {
+            const currentAssistant = currentContact?.chat_assistant ?? type.ChatAssistant.BOT;
+            const lastFlowFromTextMessage = currentContact?.last_flow ?? BOT_FLOWS.MENUOPTIONS;
+            const isIterative = currentContact?.is_iterative ?? false;
 
-        if (currentAssistant === type.ChatAssistant.BOT && lastFlowFromTextMessage === BOT_FLOWS.MENUOPTIONS) {
-            // Guardamos el mensaje del usuario
-            if (!isIterative) {
-                await saveToChat(
-                    db,
-                    messageData.userPhoneNumber,
-                    messageData.userPhoneNumber,
-                    messageData.messageInfo.content,
-                    messageData.id,
-                    lastFlowFromTextMessage,
-                    { is_iterative: true, }
-                );
+            // const cloudtaskDate = currentContact?.cloudtask_date ?? Firestore.Timestamp.fromDate(new Date());
 
-                // Enviamos el respectivo mensaje
-                const botFlow = new BotFlow(db, lastFlowFromTextMessage, messageData);
-                await botFlow.sendMessage();
+            if (currentAssistant === type.ChatAssistant.BOT && lastFlowFromTextMessage === BOT_FLOWS.MENUOPTIONS) {
+                // Guardamos el mensaje del usuario
+                if (!isIterative) {
+                    await saveToChat(
+                        db,
+                        messageData.userPhoneNumber,
+                        messageData.userPhoneNumber,
+                        messageData.messageInfo.content,
+                        messageData.id,
+                        lastFlowFromTextMessage,
+                        { is_iterative: true, }
+                    );
+
+                    // Enviamos el respectivo mensaje
+                    const botFlow = new BotFlow(db, lastFlowFromTextMessage, messageData);
+                    await botFlow.sendMessage();
+                }
+
+            } else if (currentAssistant === type.ChatAssistant.BOT) {
+                // Cuando es iterative
+                if (!currentContact?.is_iterative) {
+                    await saveToChat(
+                        db,
+                        messageData.userPhoneNumber,
+                        messageData.userPhoneNumber,
+                        messageData.messageInfo.content,
+                        messageData.id,
+                        lastFlowFromTextMessage,
+                        { is_iterative: true, }
+                    );
+                    // Le enviamos un mensaje
+                    const botFlow = new BotFlow(db, BOT_FLOWS.ITERATIVE, messageData,);
+                    await botFlow.sendMessage();
+                }
+            } else if (currentAssistant === type.ChatAssistant.GPT) {
+                if (currentContact) {
+                    // Aqui es cuando una persona ya esta hablando con gpt
+                    const gptFlow = new BotFlow(db, BOT_FLOWS.GPT_ORDER, messageData,);
+                    gptFlow.sendMessage();
+                }
+                // const cloudtaskDateObject = cloudtaskDate.toDate();
+                // const currentDate = new Date();
+                // Comparar las fechas
+                // if (cloudtaskDateObject <= currentDate) {
+                //     await saveUnreadedMessage(
+                //         db,
+                //         messageData.userPhoneNumber,
+                //         messageData.userPhoneNumber,
+                //         messageData.messageInfo.content,
+                //         messageData.id,
+                //         lastFlow,
+                //         {
+                //             userName: messageData.messageInfo.username,
+                //             is_iterative: false,
+                //             chat_status: type.ChatAssistant.GPT,
+                //             activate_cloudtask_date: true
+                //         }
+                //     );
+                //     await scheduleCloudTask(messageData.userPhoneNumber, currentContact);
+                //     console.log("Se agendó el cloudtask date");
+                // } else {
+                //     await saveUnreadedMessage(
+                //         db,
+                //         messageData.userPhoneNumber,
+                //         messageData.userPhoneNumber,
+                //         messageData.messageInfo.content,
+                //         messageData.id,
+                //         lastFlow,
+                //         { userName: messageData.messageInfo.username, is_iterative: false, chat_status: type.ChatAssistant.GPT }
+                //     );
+                // }
+                console.log("Es atendido por GPT");
             }
+        } else if (messageData.messageInfo.type === "interactive") {
+            // const contact = findContactByUserPhone(db, messageData.userPhoneNumber);
+            if (!currentContact) throw new Error("Not contact found");
+            const contextMessage = currentContact.messages.find(message => message.waid === messageData.context!.id);
 
-        } else if (currentAssistant === type.ChatAssistant.BOT) {
-            // Cuando es iterative
-            if (!currentContact?.is_iterative) {
-                await saveToChat(
-                    db,
-                    messageData.userPhoneNumber,
-                    messageData.userPhoneNumber,
-                    messageData.messageInfo.content,
-                    messageData.id,
-                    lastFlowFromTextMessage,
-                    { is_iterative: true, }
-                );
-                // Le enviamos un mensaje
-                const botFlow = new BotFlow(db, BOT_FLOWS.ITERATIVE, messageData,);
-                await botFlow.sendMessage();
-            }
-        } else if (currentAssistant === type.ChatAssistant.GPT) {
-            if (currentContact) {
-                // Aqui es cuando una persona ya esta hablando con gpt
-                const gptFlow = new BotFlow(db, BOT_FLOWS.GPT_ORDER, messageData,);
-                gptFlow.sendMessage();
-            }
-            // const cloudtaskDateObject = cloudtaskDate.toDate();
-            // const currentDate = new Date();
-            // Comparar las fechas
-            // if (cloudtaskDateObject <= currentDate) {
-            //     await saveUnreadedMessage(
-            //         db,
-            //         messageData.userPhoneNumber,
-            //         messageData.userPhoneNumber,
-            //         messageData.messageInfo.content,
-            //         messageData.id,
-            //         lastFlow,
-            //         {
-            //             userName: messageData.messageInfo.username,
-            //             is_iterative: false,
-            //             chat_status: type.ChatAssistant.GPT,
-            //             activate_cloudtask_date: true
-            //         }
-            //     );
-            //     await scheduleCloudTask(messageData.userPhoneNumber, currentContact);
-            //     console.log("Se agendó el cloudtask date");
-            // } else {
-            //     await saveUnreadedMessage(
-            //         db,
-            //         messageData.userPhoneNumber,
-            //         messageData.userPhoneNumber,
-            //         messageData.messageInfo.content,
-            //         messageData.id,
-            //         lastFlow,
-            //         { userName: messageData.messageInfo.username, is_iterative: false, chat_status: type.ChatAssistant.GPT }
-            //     );
-            // }
-            console.log("Es atendido por GPT");
+            const lastFlowFromInteractiveMessage = GetStateFromInteractiveMessage(
+                contextMessage!.interactive_message_info!.id,
+                messageData.messageInfo.content,
+            );
+
+            const chat_assistant = lastFlowFromInteractiveMessage === BOT_FLOWS.GPT_ORDER ? type.ChatAssistant.GPT : type.ChatAssistant.BOT
+            await saveToChat(
+                db,
+                messageData.userPhoneNumber,
+                messageData.userPhoneNumber,
+                messageData.messageInfo.content,
+                messageData.id,
+                lastFlowFromInteractiveMessage,
+                { is_iterative: false, chat_assistant: chat_assistant }
+            );
+
+            const gptFlow = new BotFlow(db, lastFlowFromInteractiveMessage, messageData,);
+            gptFlow.sendMessage();
+
+        } else {
+            console.log("No es un mensaje de interacción válido");
+            //await sendDefaultMessage(messageData, selectedStatus, db);
         }
-    } else if (messageData.messageInfo.type === "interactive") {
-        // const contact = findContactByUserPhone(db, messageData.userPhoneNumber);
-
-        const lastFlowFromInteractiveMessage = GetStateFromInteractiveMessage(messageData.messageInfo.content);
-        const chat_assistant = lastFlowFromInteractiveMessage === BOT_FLOWS.GPT_ORDER ? type.ChatAssistant.GPT : type.ChatAssistant.BOT
-        await saveToChat(
-            db,
-            messageData.userPhoneNumber,
-            messageData.userPhoneNumber,
-            messageData.messageInfo.content,
-            messageData.id,
-            lastFlowFromInteractiveMessage,
-            { is_iterative: false, chat_assistant: chat_assistant }
-        );
-
-        const gptFlow = new BotFlow(db, lastFlowFromInteractiveMessage, messageData,);
-        gptFlow.sendMessage();
-
-    } else {
-        console.log("No es un mensaje de interacción válido");
-        //await sendDefaultMessage(messageData, selectedStatus, db);
+    } catch (error) {
+        console.log("Error en el chat manager", error);
+        throw new Error("Error en el chat manager");
     }
 };
 
@@ -148,7 +147,11 @@ export class WhatsAppMessages {
     }
     public sendMessages = async (
         message: string,
-        options?: { chat_assistant?: type.ChatAssistant; }
+        options?: {
+            chat_assistant?: type.ChatAssistant,
+            name?: string,
+            address?: string
+        }
     ) => {
         try {
             const r = await AxiosWhatsapp.post('/messages', {
@@ -169,7 +172,12 @@ export class WhatsAppMessages {
                 message,
                 waid,
                 this.lastFlow,
-                { chat_assistant: options?.chat_assistant, is_iterative: false, }
+                { 
+                    chat_assistant: options?.chat_assistant, 
+                    is_iterative: false, 
+                    name: options?.name,
+                    address: options?.address,
+                }
             );
             console.log('savechat succesfully');
             return waid;
@@ -185,6 +193,7 @@ export class WhatsAppMessages {
     public sendMessageWithButton = async (
         message: string,
         btnTitle: string,
+        btnId: string,
     ) => {
         try {
             const r = await AxiosWhatsapp.post("/messages", {
@@ -211,7 +220,18 @@ export class WhatsAppMessages {
                 },
             });
             const waid = r.data.messages[0].id;
-            await saveToChat(this.db, this.userPhone, this.senderPhone, message, waid, this.lastFlow, { is_iterative: false, });
+            await saveInteractiveMessageToChat(
+                this.db,
+                this.userPhone,
+                this.senderPhone,
+                message,
+                waid,
+                this.lastFlow,
+                {
+                    id: btnId,
+                    content: message
+                },
+                { is_iterative: false, });
         } catch (e) {
             if (isAxiosError(e)) {
                 console.log('sendWhatAppTemplateMessage axios', e);
@@ -345,7 +365,18 @@ export class WhatsAppInteractive {
                 },
             });
             const waid = r.data.messages[0].id;
-            await saveToChat(this.db, this.userPhone, this.senderPhone, message, waid, this.lastFlow, { is_iterative: is_iterative, });
+            await saveInteractiveMessageToChat(
+                this.db,
+                this.userPhone,
+                this.senderPhone,
+                message,
+                waid,
+                this.lastFlow,
+                {
+                    id: INTERACTIVE_FLOWS.INITIAL_MENU,
+                    content: message
+                },
+                { is_iterative: is_iterative, });
             console.log('savechat succesfully');
             return waid;
         } catch (e) {

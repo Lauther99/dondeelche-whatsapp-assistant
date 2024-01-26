@@ -40,34 +40,32 @@ export const GPT_PROMPTS = {
 		failed: "Parece que no escribiste un nombre válido, Por favor inténtalo otra vez."
 	},
 	GPT_TAKE_ORDER: {
-		greet: "¡Genial!, ¿Qué deseas ordenar hoy?",
+		greet: (name: string) => {
+			return `¡Genial ${name}!, ¿Qué deseas ordenar hoy?`
+		},
 		instruction: (menu: string) => {
 			return `Debes identificar si lo que el cliente pide esta en la siguiente lista: '''${menu}'''
 			Si se encuentra en la lista, respondes NEXT. Por ejemplo: "NEXT".
 			Si no lo encuentras respondes NONEXT. Por ejemplo: "NONEXT".
 			No respondas nada más. `
 		},
-		failed: "Lo sentimos, actualmente no contamos con lo que estás pidiendo. ¿Deseas pedir algo más?"
+		failed: (name: string) => {
+			return `Lo siento ${name}, actualmente no contamos con lo que estás pidiendo. ¿Deseas pedir algo más?`
+		}
 	},
 	GPT_ASK_LOCATION: {
 		greet: "De acuerdo, ¿A qué dirección le gustaría que enviemos su pedido?",
 		instruction: `
 		Eres un detector de direcciones.
 		Si detectas que es una dirección válida respondes: NEXT y la dirección detectada. Por ejemplo: "NEXT, Parque1810"
-		Si no encuentras una dirección válida respondes NONEXT. Por ejemplo: "NONEXT"
+		Si no detectas una dirección válida respondes NONEXT no intentes escribir otras palabras SÓLO NONEXT. Por ejemplo: "NONEXT".
+		En ninguno de los dos casos escribas más palabras, sólo las indicadas.
 		`,
 		failed: "Parece que no escribiste una dirección válida, Por favor inténtalo otra vez."
 	},
 	GPT_ASK_OBSERVATIONS: {
-		greet: "De acuerdo, ¿A qué dirección le gustaría que enviemos su pedido?",
-		instruction: `
-		Eres un detector de direcciones.
-		Si detectas que es una dirección válida respondes: NEXT y la dirección detectada. Por ejemplo: "NEXT, Parque1810"
-		Si no encuentras una dirección válida respondes NONEXT. Por ejemplo: "NONEXT"
-		`,
-		failed: "Parece que no escribiste una dirección válida, Por favor inténtalo otra vez."
+		greet: "Perfecto, antes de continuar, escribe si hay alguna observación en tu pedido o en la dirección para tomarlo en cuenta. De lo contrario escribe No.",
 	},
-
 };
 
 export default GPT_PROMPTS;
